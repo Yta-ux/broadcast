@@ -6,7 +6,7 @@ const MAX_BATCH_SIZE = 200;
 
 export const processScheduledMessages = onSchedule(
   {
-    schedule: "* * * * *", // changed to standard cron to force update
+    schedule: "* * * * *",
     region: "us-central1",
     timeZone: "UTC",
     maxInstances: 1,
