@@ -5,7 +5,14 @@ import { db } from "./firebaseAdmin";
 const MAX_BATCH_SIZE = 200;
 
 export const processScheduledMessages = onSchedule(
-  { schedule: "every 1 minutes", timeoutSeconds: 60 },
+  {
+    schedule: "* * * * *", // changed to standard cron to force update
+    region: "us-central1",
+    timeZone: "UTC",
+    maxInstances: 1,
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
   async () => {
     const now = Timestamp.now();
 
@@ -17,21 +24,19 @@ export const processScheduledMessages = onSchedule(
       .get();
 
     if (snapshot.empty) {
-      console.log("No scheduled messages to process.");
       return;
     }
 
     const batch = db.batch();
 
-    for (const doc of snapshot.docs) {
-      batch.update(doc.ref, {
+    for (const docSnap of snapshot.docs) {
+      batch.update(docSnap.ref, {
         status: "sent",
-        sentAt: Timestamp.now(),
+        sentAt: now,
+        updatedAt: now,
       });
     }
 
     await batch.commit();
-
-    console.log(`Processed ${snapshot.size} scheduled messages.`);
   }
 );
