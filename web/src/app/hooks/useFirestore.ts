@@ -50,7 +50,6 @@ export const useCollection = <T extends DocumentData>(
         setError(null);
       },
       (err) => {
-        console.error(`Error in ${collectionName} snapshot:`, err);
         setError(err);
         setLoading(false);
       }

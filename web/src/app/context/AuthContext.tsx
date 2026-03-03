@@ -24,8 +24,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (tenantUserDoc.exists()) {
             setTenantId(tenantUserDoc.data().tenantId);
           }
-        } catch (error) {
-          console.error("Failed to fetch tenant info:", error);
+        } catch {
+          // tenant info unavailable
         }
       } else {
         setUser(null);
