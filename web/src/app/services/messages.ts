@@ -8,11 +8,10 @@ import {
   where,
   Timestamp,
   updateDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { MessageFormData } from "../types";
-
-import { getDoc } from "firebase/firestore";
 
 const validateConnectionOwnership = async (
   connectionId: string,
@@ -26,7 +25,7 @@ const validateConnectionOwnership = async (
   }
 };
 
-const validateContactsBelongToConnection = async (
+const validateContactsOwnership = async (
   contactIds: string[],
   connectionId: string,
   tenantId: string
@@ -48,18 +47,15 @@ export const scheduleMessage = async (
   tenantId: string,
   data: MessageFormData
 ) => {
-  // Validate text
   if (!data.text.trim()) {
     throw new Error("Message text cannot be empty.");
   }
 
-  // Validate scheduledAt is in the future (UTC)
   const scheduledTimestamp = Timestamp.fromDate(data.scheduledAt);
   if (scheduledTimestamp.toMillis() <= Date.now()) {
     throw new Error("Scheduled time must be in the future.");
   }
 
-  // Validate connectionId belongs to tenant
   const isConnectionOwned = await validateConnectionOwnership(
     data.connectionId,
     tenantId
@@ -68,8 +64,7 @@ export const scheduleMessage = async (
     throw new Error("Connection does not belong to this tenant.");
   }
 
-  // Validate contactIds belong to the connection
-  const contactsValid = await validateContactsBelongToConnection(
+  const contactsValid = await validateContactsOwnership(
     data.contactIds,
     data.connectionId,
     tenantId
@@ -99,9 +94,9 @@ export const updateMessage = async (
   tenantId: string,
   data: Partial<MessageFormData>
 ) => {
-  // We should verify it's still scheduled before updating (optional safety)
   const messageRef = doc(db, "messages", messageId);
   const snap = await getDoc(messageRef);
+  
   if (!snap.exists()) throw new Error("Message not found.");
   if (snap.data().status !== "scheduled") {
     throw new Error("Cannot edit a message that has already been sent.");
@@ -124,7 +119,6 @@ export const updateMessage = async (
     updates.scheduledAt = scheduledTimestamp;
   }
 
-  // If Connection or Contacts change, we must validate
   const connectionId = data.connectionId ?? snap.data().connectionId;
   const contactIds = data.contactIds ?? snap.data().contactIds;
 
@@ -137,15 +131,13 @@ export const updateMessage = async (
       throw new Error("Connection does not belong to this tenant.");
     }
 
-    const contactsValid = await validateContactsBelongToConnection(
+    const contactsValid = await validateContactsOwnership(
       contactIds,
       connectionId,
       tenantId
     );
     if (!contactsValid) {
-      throw new Error(
-        "One or more contacts do not belong to the selected connection."
-      );
+      throw new Error("One or more contacts do not belong to the connection.");
     }
     if (data.connectionId) updates.connectionId = connectionId;
     if (data.contactIds) updates.contactIds = contactIds;
@@ -154,6 +146,6 @@ export const updateMessage = async (
   await updateDoc(messageRef, updates);
 };
 
-export const deleteMessage = async (messageId: string) => {
-  await deleteDoc(doc(db, "messages", messageId));
-};
+export const deleteMessage = (messageId: string) => 
+  deleteDoc(doc(db, "messages", messageId));
+

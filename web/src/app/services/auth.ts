@@ -21,7 +21,8 @@ export const signup = async ({ email, password, tenantName }: SignupData) => {
   const user = userCredential.user;
 
   try {
-    const tenantRef = doc(db, "tenants", crypto.randomUUID());
+    const tenantId = crypto.randomUUID();
+    const tenantRef = doc(db, "tenants", tenantId);
     const tenantUserRef = doc(db, "tenantUsers", user.uid);
 
     const batch = writeBatch(db);
@@ -34,16 +35,15 @@ export const signup = async ({ email, password, tenantName }: SignupData) => {
 
     batch.set(tenantUserRef, {
       userId: user.uid,
-      tenantId: tenantRef.id,
+      tenantId,
       email: user.email,
       createdAt: serverTimestamp(),
     });
 
     await batch.commit();
 
-    return { user, tenantId: tenantRef.id };
+    return { user, tenantId };
   } catch (error) {
-    // Rollback: delete the auth user if Firestore write fails
     await deleteUser(user);
     throw error;
   }
@@ -58,6 +58,5 @@ export const login = async (email: string, password: string) => {
   return userCredential.user;
 };
 
-export const logout = async () => {
-  await signOut(auth);
-};
+export const logout = () => signOut(auth);
+

@@ -23,20 +23,24 @@ export const useCollection = <T extends DocumentData>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const constraintsKey = JSON.stringify(
-    constraints.map((c) => c.type)
+  const constraintsKey = useMemo(() => 
+    JSON.stringify(constraints.map((c) => c.type)), 
+    [constraints]
   );
 
+  const q = useMemo(() => {
+    if (constraints.length === 0) return null;
+    return query(collection(db, collectionName), ...constraints);
+  }, [collectionName, constraints, constraintsKey]);
+
   useEffect(() => {
-    if (constraints.length === 0) {
-      setData([]);
-      setLoading(false);
+    if (!q) {
+      setData((prev) => (prev.length === 0 ? prev : []));
+      setLoading((prev) => (prev === false ? prev : false));
       return;
     }
 
     setLoading(true);
-
-    const q = query(collection(db, collectionName), ...constraints);
 
     const unsubscribe = onSnapshot(
       q,
@@ -56,8 +60,7 @@ export const useCollection = <T extends DocumentData>(
     );
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collectionName, constraintsKey]);
+  }, [q]);
 
   return { data, loading, error };
 };
@@ -67,11 +70,17 @@ export const useFilteredCollection = <T extends DocumentData>(
   tenantId: string | null,
   extraConstraints: QueryConstraint[] = []
 ): UseCollectionResult<T> => {
+  const extraConstraintsKey = useMemo(() => 
+    JSON.stringify(extraConstraints.map((c) => c.type)),
+    [extraConstraints]
+  );
+  
   const constraints = useMemo(() => {
     if (!tenantId) return [];
     return [where("tenantId", "==", tenantId), ...extraConstraints];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, JSON.stringify(extraConstraints.map((c) => c.type))]);
+  }, [tenantId, extraConstraints, extraConstraintsKey]);
 
   return useCollection<T>(collectionName, constraints);
 };
+
+
